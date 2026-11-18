@@ -1,0 +1,170 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Existing tag: v1.2.3 or v1.2.3-rc.1'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ inputs.tag || github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.validate.outputs.tag }}
+      commit: ${{ steps.validate.outputs.commit }}
+      prerelease: ${{ steps.validate.outputs.prerelease }}
+    steps:
+      - name: Resolve existing tag and reject existing release
+        id: validate
+        uses: actions/github-script@v7
+        env:
+          REQUESTED_TAG: ${{ inputs.tag || github.ref_name }}
+        with:
+          script: |
+            const tag = process.env.REQUESTED_TAG;
+            if (typeof tag !== 'string' || tag !== tag.trim() || !/^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-rc\.(0|[1-9]\d*))?$/.test(tag)) {
+              throw new Error('Tag must be vMAJOR.MINOR.PATCH or vMAJOR.MINOR.PATCH-rc.N.');
+            }
+            const repo = context.repo;
+            const ref = await github.rest.git.getRef({ ...repo, ref: `tags/${tag}` });
+            let object = ref.data.object;
+            for (let depth = 0; object.type === 'tag' && depth < 8; depth++) {
+              object = (await github.rest.git.getTag({ ...repo, tag_sha: object.sha })).data.object;
+            }
+            if (object.type !== 'commit') throw new Error('Tag must resolve to a commit.');
+            try {
+              await github.rest.repos.getReleaseByTag({ ...repo, tag });
+              throw new Error(`Release ${tag} already exists; replacement is disabled.`);
+            } catch (error) {
+              if (error.status !== 404) throw error;
+            }
+            core.setOutput('tag', tag);
+            core.setOutput('commit', object.sha);
+            core.setOutput('prerelease', tag.includes('-rc.'));
+
+  windows:
+    needs: validate
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.validate.outputs.commit }}
+          persist-credentials: false
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: pnpm
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+      - name: Check version consistency
+        env:
+          RELEASE_TAG: ${{ needs.validate.outputs.tag }}
+        run: node scripts/check-release-version.mjs $env:RELEASE_TAG
+      - run: pnpm install --frozen-lockfile
+      - run: node --test scripts/test-release.mjs
+      - run: powershell -NoProfile -ExecutionPolicy Bypass -File scripts/test-network-interfaces.ps1
+      - run: node scripts/prepare-sidecar.mjs
+      - run: pnpm typecheck
+      - run: pnpm build
+      - run: cargo fmt --all --check
+      - run: cargo clippy --locked -p playstreamer-core --all-targets -- -D warnings
+      - run: cargo test --locked -p playstreamer-core
+      - name: Install FFmpeg for synthetic stream verification
+        run: choco install ffmpeg --no-progress -y
+      - name: Verify MediaMTX with a synthetic audio/video stream
+        shell: pwsh
+        run: |
+          $env:Path += ';C:\ProgramData\chocolatey\bin'
+          $env:PLAYSTREAMER_MEDIAMTX = (Resolve-Path 'src-tauri/binaries/mediamtx-x86_64-pc-windows-msvc.exe').Path
+          $env:PLAYSTREAMER_FFMPEG = (Get-Command ffmpeg -ErrorAction Stop).Source
+          cargo test --locked -p playstreamer-core --test media_integration -- --ignored --test-threads=1
+      - run: cargo check --locked --manifest-path src-tauri/Cargo.toml
+      - run: pnpm tauri build --bundles nsis
+      - run: node scripts/package-release.mjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-release
+          path: dist-release/*
+          if-no-files-found: error
+          retention-days: 7
+
+  macos-core:
+    needs: validate
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.validate.outputs.commit }}
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo check --locked -p playstreamer-core
+      - run: cargo test --locked -p playstreamer-core
+
+  publish:
+    needs: [validate, windows, macos-core]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: windows-release
+          path: release
+      - name: Upload assets before publishing
+        uses: actions/github-script@v7
+        env:
+          RELEASE_TAG: ${{ needs.validate.outputs.tag }}
+          RELEASE_COMMIT: ${{ needs.validate.outputs.commit }}
+          IS_PRERELEASE: ${{ needs.validate.outputs.prerelease }}
+        with:
+          script: |
+            const fs = require('node:fs/promises');
+            const crypto = require('node:crypto');
+            const repo = context.repo;
+            const tag = process.env.RELEASE_TAG;
+            const names = await fs.readdir('release');
+            const installers = names.filter(name => /^PlayStreamer_[0-9.]+(?:-rc\.[0-9]+)?_windows_x64_setup\.exe$/.test(name));
+            if (names.length !== 3 || installers.length !== 1 || !names.includes('SHA256SUMS') || !names.includes('RELEASE_NOTES.md')) {
+              throw new Error('Release artifact set is incomplete or contains unexpected files.');
+            }
+            const installer = await fs.readFile(`release/${installers[0]}`);
+            const digest = crypto.createHash('sha256').update(installer).digest('hex');
+            const checksums = await fs.readFile('release/SHA256SUMS', 'utf8');
+            if (checksums.trim() !== `${digest}  ${installers[0]}`) throw new Error('Installer checksum mismatch.');
+            let object = (await github.rest.git.getRef({ ...repo, ref: `tags/${tag}` })).data.object;
+            for (let depth = 0; object.type === 'tag' && depth < 8; depth++) {
+              object = (await github.rest.git.getTag({ ...repo, tag_sha: object.sha })).data.object;
+            }
+            if (object.type !== 'commit' || object.sha !== process.env.RELEASE_COMMIT) throw new Error('Release tag moved during build.');
+            try {
+              await github.rest.repos.getReleaseByTag({ ...repo, tag });
+              throw new Error(`Release ${tag} already exists; refusing to overwrite.`);
+            } catch (error) {
+              if (error.status !== 404) throw error;
+            }
+            const prerelease = process.env.IS_PRERELEASE === 'true';
+            const release = (await github.rest.repos.createRelease({
+              ...repo, tag_name: tag, target_commitish: object.sha, name: `PlayStreamer ${tag}`,
+              body: await fs.readFile('release/RELEASE_NOTES.md', 'utf8'), draft: true, prerelease
+            })).data;
+            for (const name of names) {
+              await github.rest.repos.uploadReleaseAsset({
+                ...repo, release_id: release.id, name, data: await fs.readFile(`release/${name}`)
+              });
+            }
+            await github.rest.repos.updateRelease({ ...repo, release_id: release.id, draft: false, prerelease, make_latest: prerelease ? 'false' : 'true' });

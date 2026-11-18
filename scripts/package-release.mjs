@@ -1,0 +1,20 @@
+import { createHash } from 'node:crypto';
+import { copyFile, mkdir, readdir, readFile, writeFile } from 'node:fs/promises';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const packageJson = JSON.parse(await readFile(path.join(root, 'package.json'), 'utf8'));
+const source = path.join(root, 'target/release/bundle/nsis');
+const installers = (await readdir(source)).filter((name) => name.endsWith('-setup.exe'));
+if (installers.length !== 1) throw new Error(`Expected exactly one NSIS installer, found ${installers.length}.`);
+const output = path.join(root, 'dist-release');
+await mkdir(output, { recursive: true });
+if ((await readdir(output)).length !== 0) throw new Error('dist-release must be empty; refusing to mix release artifacts.');
+const name = `PlayStreamer_${packageJson.version}_windows_x64_setup.exe`;
+await copyFile(path.join(source, installers[0]), path.join(output, name));
+const digest = createHash('sha256').update(await readFile(path.join(output, name))).digest('hex');
+await writeFile(path.join(output, 'SHA256SUMS'), `${digest}  ${name}\n`);
+const notes = `# PlayStreamer ${packageJson.version}\n\nWindows x64 安装包。安装前可使用 SHA256SUMS 核对文件完整性。\n\n- 包含锁定版本的 MediaMTX 本地接收服务。\n- OBS、PlayStation 与目标平台需按项目使用教程配置。\n- macOS 当前仅验证核心模块，不提供桌面安装包。\n- 本版本安装包未进行代码签名；首次启动时 Windows 可能显示发布者提示。\n- PS 固件、账号区域、网络和目标平台的实机兼容性以 docs/validation.md 中的记录为准。\n\n详见仓库 README 和 docs/ 下的使用、故障排查与版本发布文档。\n`;
+await writeFile(path.join(output, 'RELEASE_NOTES.md'), notes);
+console.log(`Prepared ${name} and SHA256SUMS.`);
