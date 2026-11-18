@@ -41,9 +41,11 @@ jobs:
       - name: Verify MediaMTX with a synthetic audio/video stream
         shell: pwsh
         run: |
-          $env:Path += ';C:\ProgramData\chocolatey\bin'
           $env:PLAYSTREAMER_MEDIAMTX = (Resolve-Path 'src-tauri/binaries/mediamtx-x86_64-pc-windows-msvc.exe').Path
-          $env:PLAYSTREAMER_FFMPEG = (Get-Command ffmpeg -ErrorAction Stop).Source
+          # Killing a Chocolatey shim leaves the real publisher running. Launch its target directly.
+          $ffmpegBinary = Join-Path $env:ChocolateyInstall 'lib/ffmpeg/tools/ffmpeg/bin/ffmpeg.exe'
+          $env:PLAYSTREAMER_FFMPEG = (Resolve-Path -LiteralPath $ffmpegBinary -ErrorAction Stop).Path
+          Write-Output "Synthetic publisher: $env:PLAYSTREAMER_FFMPEG"
           cargo test --locked -p playstreamer-core --test media_integration -- --ignored --test-threads=1
       - run: cargo check --locked --manifest-path src-tauri/Cargo.toml
 
