@@ -1,0 +1,13 @@
+node_modules/
+dist/
+dist-release/
+*.tsbuildinfo
+src-tauri/gen/
+target/
+src-tauri/binaries/*
+!src-tauri/binaries/.gitkeep
+.cache/
+*.log
+.DS_Store
+test-results/
+playwright-report/

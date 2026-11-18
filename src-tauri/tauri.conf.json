@@ -1,0 +1,40 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "PlayStreamer",
+  "version": "0.1.0",
+  "identifier": "fun.jxqg.playstreamer",
+  "build": {
+    "beforeDevCommand": "pnpm dev",
+    "devUrl": "http://127.0.0.1:1420",
+    "beforeBuildCommand": "pnpm build",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [{
+      "label": "main", "title": "PlayStreamer",
+      "width": 1060, "height": 740, "minWidth": 900, "minHeight": 640,
+      "decorations": false, "shadow": true, "center": true
+    }],
+    "security": {
+      "csp": "default-src 'self'; img-src 'self' asset: data:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src ipc: http://ipc.localhost"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["nsis"],
+    "category": "Utility",
+    "shortDescription": "PlayStation 直播接流助手",
+    "longDescription": "在局域网接收 PS5 广播，并通过固定播放地址连接 OBS。",
+    "icon": ["icons/icon.png", "icons/icon.ico"],
+    "externalBin": ["binaries/mediamtx"],
+    "resources": ["resources/mediamtx-LICENSE"],
+    "licenseFile": "../LICENSE",
+    "windows": {
+      "webviewInstallMode": { "type": "downloadBootstrapper" },
+      "nsis": {
+        "installMode": "currentUser", "languages": ["SimpChinese", "English"],
+        "displayLanguageSelector": false, "installerHooks": "installer/hooks.nsh"
+      }
+    }
+  }
+}
