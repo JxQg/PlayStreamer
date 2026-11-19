@@ -93,6 +93,8 @@ test('release packaging writes verified assets and refuses mixed output', async 
   const temporary = await mkdtemp(path.join(tmpdir(), 'playstreamer-release-test-'));
   try {
     await mkdir(path.join(temporary, 'scripts'), { recursive: true });
+    await mkdir(path.join(temporary, 'docs/releases'), { recursive: true });
+    await writeFile(path.join(temporary, 'docs/releases/0.1.0.md'), 'Security release fixture.\n');
     await mkdir(path.join(temporary, 'target/release/bundle/nsis'), { recursive: true });
     await copyFile(path.join(root, 'scripts/package-release.mjs'), path.join(temporary, 'scripts/package-release.mjs'));
     await writeFile(path.join(temporary, 'package.json'), JSON.stringify({ version: '0.1.0' }));
@@ -105,6 +107,7 @@ test('release packaging writes verified assets and refuses mixed output', async 
     assert.equal(await readFile(path.join(temporary, 'dist-release/SHA256SUMS'), 'utf8'), `${digest}  PlayStreamer_0.1.0_windows_x64_setup.exe\n`);
     const notes = await readFile(path.join(temporary, 'dist-release/RELEASE_NOTES.md'), 'utf8');
     assert.match(notes, /^# PlayStreamer 0\.1\.0\n\n/);
+    assert.match(notes, /Security release fixture\./);
     const second = run();
     assert.notEqual(second.status, 0);
     assert.match(second.stderr, /dist-release must be empty/);

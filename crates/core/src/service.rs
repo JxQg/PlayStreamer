@@ -348,11 +348,9 @@ impl Engine {
             s.last_error = None;
         });
         drop(r);
-        if should_resume {
-            if let Err(error) = self.start_receiving().await {
-                self.resume_failed(&error);
-                return Err(error);
-            }
+        if should_resume && let Err(error) = self.start_receiving().await {
+            self.resume_failed(&error);
+            return Err(error);
         }
         Ok(())
     }
@@ -410,7 +408,7 @@ impl Engine {
                     }
                 }
                 tick = tick.wrapping_add(1);
-                if tick % 3 == 0 && engine.snapshot().dns_running {
+                if tick.is_multiple_of(3) && engine.snapshot().dns_running {
                     let config = engine.config().await;
                     match interfaces().await {
                         Ok(list) => {

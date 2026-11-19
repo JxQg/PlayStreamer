@@ -6,6 +6,7 @@ PlayStreamer is distributed under the MIT license. Third-party packages retain t
 | --- | --- | --- |
 | [MediaMTX v1.21.4](https://github.com/bluenviron/mediamtx/tree/v1.21.4) | MIT | Bundled as a separate executable; original license in `src-tauri/resources/mediamtx-LICENSE` |
 | [Tauri](https://github.com/tauri-apps/tauri) | MIT / Apache-2.0 | Desktop framework |
+| [glib 0.18.5](https://github.com/gtk-rs/gtk-rs-core/tree/0.18.5/glib) | MIT | Vendored GTK dependency with the upstream VariantStrIter security fix; license, copyright and patch provenance in `vendor/glib-0.18.5/` |
 | [React](https://github.com/facebook/react) | MIT | User interface runtime |
 | [Lucide](https://github.com/lucide-icons/lucide) | ISC | Interface icons |
 | [Noto Sans SC](https://fonts.google.com/noto/specimen/Noto+Sans+SC) | SIL Open Font License 1.1 | Bundled variable font for all application text; original license in `public/fonts/NotoSansSC-OFL.txt` (distributed as `fonts/NotoSansSC-OFL.txt`) |

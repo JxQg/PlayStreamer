@@ -53,6 +53,24 @@ jobs:
             core.setOutput('commit', object.sha);
             core.setOutput('prerelease', tag.includes('-rc.'));
 
+  glib-security:
+    name: Optimized glib security regression
+    needs: validate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.validate.outputs.commit }}
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: tools/glib-security
+      - name: Install GLib development libraries
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libglib2.0-dev pkg-config
+      - name: Verify upstream variant iterator tests with optimizations
+        run: cargo test --manifest-path tools/glib-security/Cargo.toml --release --locked --lib
+
   windows:
     needs: validate
     runs-on: windows-latest
@@ -118,7 +136,7 @@ jobs:
       - run: cargo test --locked -p playstreamer-core
 
   publish:
-    needs: [validate, windows, macos-core]
+    needs: [validate, windows, macos-core, glib-security]
     runs-on: ubuntu-latest
     permissions:
       contents: write
