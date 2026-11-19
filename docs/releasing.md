@@ -39,3 +39,17 @@ Get-FileHash -Algorithm SHA256 .\dist-release\PlayStreamer_0.1.0_windows_x64_set
 ```
 
 `package-release.mjs` 要求安装包目录中只有一个 NSIS 产物，且 `dist-release` 为空，避免把上次产物混入新版本。本地校验摘要应与 `SHA256SUMS` 中对应文件相同。
+
+## 官网与操作文档
+
+官网发布在 <https://jxqg.github.io/PlayStreamer/>。`site/` 保存页面模板和样式，`docs/` 中的操作文档在构建时生成网页，两者通过同一 GitHub Pages 工作流发布。修改操作步骤时直接更新对应 Markdown 文档，避免维护两份内容。
+
+```powershell
+pnpm install --frozen-lockfile
+pnpm site:build
+node scripts/check-site.mjs
+```
+
+网站产物位于 `site-dist/`，不提交到仓库。检查脚本校验页面内的本地链接、图片、脚本和锚点，发现缺失文件或错误项目路径时停止发布。`site/site.json` 保存站点地址、项目描述、标签和文档导航。默认 `BASE_PATH` 为 `/PlayStreamer/`，`SITE_URL` 为 `https://jxqg.github.io/PlayStreamer/`；迁移域名或仓库名时同时更新站点配置、工作流中的两个值和仓库网站地址。
+
+仓库 Settings → Pages 的构建来源应选择 GitHub Actions。更新网站、操作文档、图标或构建配置并合并到 `main` 后，Website 工作流自动构建、检查并发布；也可以在 `main` 上手动运行。拉取请求只构建和检查，其他分支不能部署生产站点。发布结果和线上地址见对应 Actions 运行记录及 `github-pages` 环境。

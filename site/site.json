@@ -1,0 +1,15 @@
+{
+  "name": "PlayStreamer",
+  "url": "https://jxqg.github.io/PlayStreamer/",
+  "repository": "https://github.com/JxQg/PlayStreamer",
+  "description": "Windows 优先的 PS5 直播接流助手：一键接收局域网广播，通过 OBS 转播到 Bilibili，或用投影窗口分享到 OOPZ。",
+  "topics": ["playstation", "ps5", "streaming", "rtmp", "obs-studio", "bilibili", "oopz", "windows", "tauri", "rust", "mediamtx", "self-hosted"],
+  "documents": [
+    { "source": "quick-start.md", "path": "guide/", "label": "快速开始", "description": "从安装到首次开播，完成 PS5、PlayStreamer 和 OBS 的连接。" },
+    { "source": "ps5-setup.md", "path": "ps5/", "label": "PS5 与网络设置", "description": "设置 PS5 DNS、关联 Twitch，了解 TUN、VPN 和电脑代理共存。" },
+    { "source": "obs-platforms.md", "path": "obs/", "label": "OBS 与转播平台", "description": "在 OBS 添加 PS5 媒体源，转播到 Bilibili 或通过 OOPZ 分享画面和声音。" },
+    { "source": "troubleshooting.md", "path": "troubleshooting/", "label": "故障排查", "description": "排查网卡、DNS、防火墙、黑屏、声音及代理共存问题。" },
+    { "source": "validation.md", "path": "validation/", "label": "兼容性与验证", "description": "查看自动检查和真实 PS5、OBS、Bilibili、OOPZ 设备验证的实际状态。" },
+    { "source": "releasing.md", "path": "development/", "label": "维护与发布", "description": "了解开发环境、依赖、图标、GitHub Actions 和版本发布方式。" }
+  ]
+}
