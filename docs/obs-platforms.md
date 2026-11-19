@@ -1,5 +1,7 @@
 # OBS 与转播平台设置
 
+先按[快速开始](quick-start.md)完成本地接流，确认 PlayStreamer 已显示“正在接收”，再配置 OBS 与目标平台。
+
 ## 添加 PS5 媒体源
 
 1. 安装并打开 [OBS Studio](https://obsproject.com/)，新建专用于 PS5 的场景。

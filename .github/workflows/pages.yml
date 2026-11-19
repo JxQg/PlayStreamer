@@ -1,0 +1,76 @@
+name: Website
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'site/**'
+      - 'scripts/build-site.mjs'
+      - 'scripts/check-site.mjs'
+      - 'docs/**'
+      - 'public/brand/playstreamer.svg'
+      - 'public/fonts/NotoSansSC-OFL.txt'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - '.github/workflows/pages.yml'
+  pull_request:
+    paths:
+      - 'site/**'
+      - 'scripts/build-site.mjs'
+      - 'scripts/check-site.mjs'
+      - 'docs/**'
+      - 'public/brand/playstreamer.svg'
+      - 'public/fonts/NotoSansSC-OFL.txt'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - '.github/workflows/pages.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: website-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  BASE_PATH: /PlayStreamer/
+  SITE_URL: https://jxqg.github.io/PlayStreamer/
+
+jobs:
+  build:
+    name: Build and validate website
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm site:build
+      - run: node scripts/check-site.mjs
+      - name: Upload production website
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site-dist
+
+  deploy:
+    name: Publish GitHub Pages
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/configure-pages@v5
+      - name: Deploy website
+        id: deployment
+        uses: actions/deploy-pages@v4

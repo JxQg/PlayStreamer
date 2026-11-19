@@ -4,6 +4,8 @@
 
 PlayStreamer 是 Windows 优先的 PlayStation 直播接流助手。它在局域网提供针对 PS5 直播入口的 DNS 解析和本地媒体接收，将画面交给 OBS，再由 OBS 转播到 Bilibili，或通过投影窗口分享到 OOPZ。
 
+[项目官网](https://jxqg.github.io/PlayStreamer/) · [操作文档](https://jxqg.github.io/PlayStreamer/guide/) · [下载 Windows 版](https://github.com/JxQg/PlayStreamer/releases/latest) · [反馈问题](https://github.com/JxQg/PlayStreamer/issues)
+
 ```text
 PS5 广播 → PlayStreamer 本地接收 → OBS
                                   ├─ Bilibili 推流
@@ -37,7 +39,7 @@ rtmp://127.0.0.1:1935/live/playstation
 
 关闭窗口后应用继续驻留托盘。停止接收会保留 DNS 解析，避免 PS5 因仍使用电脑 DNS 而立即失去解析服务；完全退出或关闭电脑前，请先结束 PS5 广播，并把 PS5 DNS 恢复自动。
 
-完整教程：[PS5 设置](docs/ps5-setup.md) · [OBS 与平台设置](docs/obs-platforms.md) · [故障排查](docs/troubleshooting.md)
+完整教程：[快速开始](docs/quick-start.md) · [PS5 设置](docs/ps5-setup.md) · [OBS 与平台设置](docs/obs-platforms.md) · [故障排查](docs/troubleshooting.md)
 
 电脑可以保留现有 TUN / VPN，但接流应选择物理局域网网卡。PS5 可按 [代理共存说明](docs/ps5-setup.md#与-tunvpn-和现有代理共存) 复用电脑已有的 HTTP / mixed 局域网代理；仅开启电脑 TUN 不会自动代理 PS5，应用的上游 DNS 也不是代理入口。
 

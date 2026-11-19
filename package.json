@@ -4,6 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "site:build": "node scripts/build-site.mjs",
+    "site:check": "node scripts/check-site.mjs",
     "icons": "node scripts/generate-icons.mjs",
     "dev": "vite --host 127.0.0.1",
     "build": "node scripts/generate-icons.mjs && tsc -b && vite build",
@@ -25,6 +27,7 @@
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",
     "@vitejs/plugin-react": "^5.0.4",
+    "marked": "^18.2.1",
     "typescript": "~5.9.3",
     "vite": "^7.2.2"
   },
