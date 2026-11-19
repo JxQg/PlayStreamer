@@ -10,7 +10,7 @@ PS5 广播 → PlayStreamer 本地接收 → OBS
                                   └─ 投影窗口 → OOPZ 分享
 ```
 
-这是 v0.1.0 的 Windows x64 首版实现。PS5、OBS、Bilibili 和 OOPZ 的真实设备联合验证状态见 [验证清单](docs/validation.md)。macOS 当前预留跨平台核心并在 CI 中检查，尚不提供桌面安装包。
+当前版本为 v0.1.1，安全更新见 [版本说明](docs/releases/0.1.1.md)。PS5、OBS、Bilibili 和 OOPZ 的真实设备联合验证状态见 [验证清单](docs/validation.md)。macOS 当前预留跨平台核心并在 CI 中检查，尚不提供桌面安装包。
 
 ## 功能
 
@@ -43,7 +43,7 @@ rtmp://127.0.0.1:1935/live/playstation
 
 ## 开发
 
-技术栈为 Rust + Tauri 2、React + TypeScript、MediaMTX。Windows 需要 Rust stable、Visual Studio C++ Build Tools、WebView2、Node.js 22 或更新版本以及 pnpm 10。
+技术栈为 Rust + Tauri 2、React + TypeScript、MediaMTX。Windows 需要 Rust 1.88 或更新 stable 版本、Visual Studio C++ Build Tools、WebView2、Node.js 22 或更新版本以及 pnpm 10。
 
 ```powershell
 pnpm install --frozen-lockfile

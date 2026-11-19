@@ -1,0 +1,11 @@
+[package]
+name = "playstreamer-glib-security"
+version = "0.1.0"
+edition = "2021"
+publish = false
+license = "MIT"
+
+[workspace]
+
+[dependencies]
+glib = { path = "../../vendor/glib-0.18.5" }

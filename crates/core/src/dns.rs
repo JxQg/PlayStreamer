@@ -176,15 +176,11 @@ pub fn is_target(name: &str) -> bool {
 }
 
 fn response(query: &Message, code: ResponseCode) -> Message {
-    let mut result = Message::new();
-    result
-        .set_id(query.id())
-        .set_message_type(MessageType::Response)
-        .set_op_code(OpCode::Query)
-        .set_recursion_desired(query.recursion_desired())
-        .set_recursion_available(true)
-        .set_response_code(code);
-    for q in query.queries() {
+    let mut result = Message::response(query.id, OpCode::Query);
+    result.metadata.recursion_desired = query.recursion_desired;
+    result.metadata.recursion_available = true;
+    result.metadata.response_code = code;
+    for q in &query.queries {
         result.add_query(q.clone());
     }
     result
@@ -197,14 +193,14 @@ async fn resolve(
     tcp: bool,
 ) -> Result<Vec<u8>> {
     let query = Message::from_vec(bytes).context("invalid DNS packet")?;
-    if query.message_type() != MessageType::Query {
+    if query.message_type != MessageType::Query {
         bail!("unexpected DNS response");
     }
     counters.queries.fetch_add(1, Ordering::Relaxed);
-    if query.op_code() != OpCode::Query || query.queries().len() != 1 {
+    if query.op_code != OpCode::Query || query.queries.len() != 1 {
         return Ok(response(&query, ResponseCode::FormErr).to_vec()?);
     }
-    let question = &query.queries()[0];
+    let question = &query.queries[0];
     if is_target(&question.name().to_utf8()) {
         counters.intercepts.fetch_add(1, Ordering::Relaxed);
         let mut reply = response(&query, ResponseCode::NoError);
@@ -220,11 +216,11 @@ async fn resolve(
     for upstream in &settings.upstreams {
         if let Ok(Ok(mut reply)) = timeout(IO_TIMEOUT, forward(query.clone(), *upstream, tcp)).await
         {
-            reply.set_id(query.id());
+            reply.metadata.id = query.id;
             let output = reply.to_vec()?;
             if !tcp && output.len() > 1232 {
                 return Ok(response(&query, ResponseCode::NoError)
-                    .set_truncated(true)
+                    .truncate()
                     .to_vec()?);
             }
             return Ok(output);
@@ -235,10 +231,7 @@ async fn resolve(
 
 async fn forward(mut query: Message, upstream: SocketAddrV4, tcp: bool) -> Result<Message> {
     let random = uuid::Uuid::new_v4();
-    query.set_id(u16::from_be_bytes([
-        random.as_bytes()[0],
-        random.as_bytes()[1],
-    ]));
+    query.metadata.id = u16::from_be_bytes([random.as_bytes()[0], random.as_bytes()[1]]);
     let bytes = query.to_vec()?;
     let mut use_tcp = tcp;
     if !tcp {
@@ -249,7 +242,7 @@ async fn forward(mut query: Message, upstream: SocketAddrV4, tcp: bool) -> Resul
         let size = socket.recv(&mut buffer).await?;
         let reply = Message::from_vec(&buffer[..size])?;
         validate_reply(&query, &reply)?;
-        if !reply.truncated() {
+        if !reply.truncation {
             return Ok(reply);
         }
         use_tcp = true;
@@ -269,9 +262,9 @@ async fn forward(mut query: Message, upstream: SocketAddrV4, tcp: bool) -> Resul
 }
 
 fn validate_reply(query: &Message, reply: &Message) -> Result<()> {
-    if reply.id() != query.id()
-        || reply.message_type() != MessageType::Response
-        || reply.queries() != query.queries()
+    if reply.id != query.id
+        || reply.message_type != MessageType::Response
+        || reply.queries != query.queries
     {
         bail!("mismatched DNS reply");
     }
@@ -283,9 +276,8 @@ mod tests {
     use super::*;
     use hickory_proto::{op::Query, rr::Name};
     fn query(name: &str, kind: RecordType) -> Vec<u8> {
-        let mut m = Message::new();
-        m.set_id(27)
-            .add_query(Query::query(Name::from_ascii(name).unwrap(), kind));
+        let mut m = Message::new(27, MessageType::Query, OpCode::Query);
+        m.add_query(Query::query(Name::from_ascii(name).unwrap(), kind));
         m.to_vec().unwrap()
     }
     fn settings() -> DnsSettings {
@@ -321,9 +313,9 @@ mod tests {
             .await
             .unwrap();
             let m = Message::from_vec(&b).unwrap();
-            assert_eq!(m.id(), 27);
-            assert_eq!(m.response_code(), ResponseCode::NoError);
-            assert_eq!(m.answers().len(), usize::from(kind == RecordType::A));
+            assert_eq!(m.id, 27);
+            assert_eq!(m.response_code, ResponseCode::NoError);
+            assert_eq!(m.answers.len(), usize::from(kind == RecordType::A));
         }
     }
     #[tokio::test]
@@ -350,7 +342,7 @@ mod tests {
         )
         .await
         .unwrap();
-        assert_eq!(Message::from_vec(&bytes).unwrap().id(), 27);
+        assert_eq!(Message::from_vec(&bytes).unwrap().id, 27);
         task.await.unwrap();
     }
     #[tokio::test]
@@ -376,7 +368,7 @@ mod tests {
             let q = Message::from_vec(&bytes[..n]).unwrap();
             udp.send_to(
                 &response(&q, ResponseCode::NoError)
-                    .set_truncated(true)
+                    .truncate()
                     .to_vec()
                     .unwrap(),
                 peer,
@@ -406,7 +398,7 @@ mod tests {
         .await
         .unwrap();
         assert_eq!(
-            Message::from_vec(&bytes).unwrap().response_code(),
+            Message::from_vec(&bytes).unwrap().response_code,
             ResponseCode::NXDomain
         );
         responder.await.unwrap();
@@ -419,10 +411,9 @@ mod tests {
             let mut b = [0; 1024];
             let (n, p) = socket.recv_from(&mut b).await.unwrap();
             let q = Message::from_vec(&b[..n]).unwrap();
-            let bytes = response(&q, ResponseCode::NoError)
-                .set_id(q.id().wrapping_add(1))
-                .to_vec()
-                .unwrap();
+            let mut reply = response(&q, ResponseCode::NoError);
+            reply.metadata.id = q.id.wrapping_add(1);
+            let bytes = reply.to_vec().unwrap();
             socket.send_to(&bytes, p).await.unwrap();
         });
         let mut s = settings();
@@ -439,7 +430,7 @@ mod tests {
         .await
         .unwrap();
         assert_eq!(
-            Message::from_vec(&bytes).unwrap().response_code(),
+            Message::from_vec(&bytes).unwrap().response_code,
             ResponseCode::ServFail
         );
         task.await.unwrap();
@@ -463,7 +454,7 @@ mod tests {
         let len = stream.read_u16().await.unwrap();
         let mut reply = vec![0; len as usize];
         stream.read_exact(&mut reply).await.unwrap();
-        assert_eq!(Message::from_vec(&reply).unwrap().answers().len(), 1);
+        assert_eq!(Message::from_vec(&reply).unwrap().answers.len(), 1);
         let udp = UdpSocket::bind("127.0.0.1:0").await.unwrap();
         udp.send_to(&bytes, address).await.unwrap();
         let mut reply = [0; 1024];
@@ -471,7 +462,7 @@ mod tests {
             .await
             .unwrap()
             .unwrap();
-        assert_eq!(Message::from_vec(&reply[..n]).unwrap().answers().len(), 1);
+        assert_eq!(Message::from_vec(&reply[..n]).unwrap().answers.len(), 1);
         service.stop().await;
         assert!(TcpListener::bind(address).await.is_ok());
         assert!(UdpSocket::bind(address).await.is_ok());

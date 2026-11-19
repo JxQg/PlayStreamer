@@ -269,10 +269,10 @@ impl MediaSession {
         if let Some(shutdown) = self.auth_shutdown.take() {
             let _ = shutdown.send(());
         }
-        if let Some(mut task) = self.auth_task.take() {
-            if timeout(Duration::from_secs(2), &mut task).await.is_err() {
-                task.abort();
-            }
+        if let Some(mut task) = self.auth_task.take()
+            && timeout(Duration::from_secs(2), &mut task).await.is_err()
+        {
+            task.abort();
         }
         for task in self.log_tasks.drain(..) {
             task.abort();
@@ -439,10 +439,8 @@ async fn read_logs<R: AsyncRead + Unpin>(mut reader: R, logs: Logs) {
         };
         for &byte in &chunk[..count] {
             if byte == b'\n' {
-                if !oversized {
-                    if let Some(message) = safe_log(&String::from_utf8_lossy(&line)) {
-                        push_log(&logs, message);
-                    }
+                if !oversized && let Some(message) = safe_log(&String::from_utf8_lossy(&line)) {
+                    push_log(&logs, message);
                 }
                 line.clear();
                 oversized = false;
