@@ -5,7 +5,7 @@ import { Marked } from 'marked';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const config = JSON.parse(await readFile(path.join(root, 'site/site.json'), 'utf8'));
-const pkg = JSON.parse(await readFile(path.join(root, 'package.json'), 'utf8'));
+
 const origin = new URL(process.env.SITE_URL || config.url);
 const base = process.env.BASE_PATH || origin.pathname;
 if (!base.startsWith('/') || !base.endsWith('/') || base.includes('..') || /[?#]/.test(base)) throw new Error('BASE_PATH must be an absolute directory path.');
@@ -36,11 +36,11 @@ const iconPaths = {
   HELP: '<circle cx="12" cy="12" r="10"/><path d="M9 9a3 3 0 1 1 5 2c-2 1-2 2-2 3m0 3h.01"/>',
 };
 const icons = Object.fromEntries(Object.entries(iconPaths).map(([name, body]) => [`ICON_${name}`, `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${body}</svg>`]));
-const download = `${config.repository}/releases/download/v${pkg.version}/PlayStreamer_${pkg.version}_windows_x64_setup.exe`;
-const replacements = { BASE: base, REPO: config.repository, VERSION: pkg.version, DOWNLOAD: download, ...icons };
+const download = `${config.repository}/releases/latest`;
+const replacements = { BASE: base, REPO: config.repository, DOWNLOAD: download, ...icons };
 const fill = (html) => html.replace(/\{\{([A-Z_]+)\}\}/g, (_, key) => { if (!(key in replacements)) throw new Error(`Unknown template value ${key}`); return replacements[key]; });
 
-const nav = (current) => `<header class="site-header"><div class="wrap header-inner"><a href="${base}" class="brand" aria-label="PlayStreamer 首页"><img src="${base}assets/playstreamer.svg" width="32" height="32" alt=""><span>PlayStreamer</span></a><button class="menu-toggle" type="button" aria-controls="site-navigation" aria-expanded="false" aria-label="展开导航"><span></span><span></span></button><nav id="site-navigation" aria-label="主导航"><a href="${base}#how-it-works">工作方式</a><a href="${base}guide/"${current ? ' aria-current="true"' : ''}>使用文档</a><a href="${config.repository}" class="github-link">GitHub <span aria-hidden="true">↗</span></a><a class="nav-download" href="${download}">下载 v${pkg.version}</a></nav></div></header>`;
+const nav = (current) => `<header class="site-header"><div class="wrap header-inner"><a href="${base}" class="brand" aria-label="PlayStreamer 首页"><img src="${base}assets/playstreamer.svg" width="32" height="32" alt=""><span>PlayStreamer</span></a><button class="menu-toggle" type="button" aria-controls="site-navigation" aria-expanded="false" aria-label="展开导航"><span></span><span></span></button><nav id="site-navigation" aria-label="主导航"><a href="${base}#how-it-works">工作方式</a><a href="${base}guide/"${current ? ' aria-current="true"' : ''}>使用文档</a><a href="${config.repository}" class="github-link">GitHub <span aria-hidden="true">↗</span></a><a class="nav-download" href="${download}">下载 Windows 版</a></nav></div></header>`;
 const footer = `<footer class="site-footer"><div class="wrap footer-top"><a class="brand" href="${base}"><img src="${base}assets/playstreamer.svg" width="28" height="28" alt=""><span>PlayStreamer</span></a><div><a href="${base}guide/">操作文档</a><a href="${config.repository}/issues">反馈问题</a><a href="${config.repository}/releases">版本发布</a><a href="${config.repository}/blob/main/LICENSE">MIT 许可证</a></div></div><div class="wrap footer-bottom"><p>让主机的精彩，多一个去处。</p><p>独立开源项目，与 Sony、PlayStation、Twitch、Bilibili 及 OOPZ 无隶属关系。</p></div></footer>`;
 function page({ title, description, route = '', body, document = false }) {
   const canonical = new URL(route, origin).href;
@@ -78,7 +78,7 @@ for (let index = 0; index < config.documents.length; index++) {
   const content = markdown.parse(await readFile(path.join(root, 'docs', doc.source), 'utf8'));
   const previous = config.documents[index - 1];
   const next = config.documents[index + 1];
-  const sidebar = `<aside class="docs-sidebar"><p>操作文档</p><nav aria-label="文档导航">${config.documents.map(item => `<a href="${base}${item.path}"${item === doc ? ' aria-current="page"' : ''}>${esc(item.label)}</a>`).join('')}</nav><a class="sidebar-release" href="${config.repository}/releases/latest">下载 v${pkg.version} ${icons.ICON_ARROW}</a></aside>`;
+  const sidebar = `<aside class="docs-sidebar"><p>操作文档</p><nav aria-label="文档导航">${config.documents.map(item => `<a href="${base}${item.path}"${item === doc ? ' aria-current="page"' : ''}>${esc(item.label)}</a>`).join('')}</nav><a class="sidebar-release" href="${config.repository}/releases/latest">下载 Windows 版 ${icons.ICON_ARROW}</a></aside>`;
   const toc = `<aside class="docs-toc"><span>本页内容</span><nav aria-label="本页目录">${headings.map(h => `<a href="#${esc(h.id)}">${esc(h.text)}</a>`).join('')}</nav></aside>`;
   const body = `<div class="wrap docs-layout">${sidebar}<main id="main" class="docs-main"><div class="doc-breadcrumb"><a href="${base}">首页</a><span aria-hidden="true">/</span><span>${esc(doc.label)}</span></div><article class="prose">${content}</article><div class="doc-edit"><a href="${config.repository}/edit/main/docs/${doc.source}">在 GitHub 编辑此页 ↗</a></div><nav class="doc-pagination" aria-label="相邻文档">${previous ? `<a href="${base}${previous.path}"><span>上一篇</span>${esc(previous.label)}</a>` : '<span></span>'}${next ? `<a href="${base}${next.path}"><span>下一篇</span>${esc(next.label)}</a>` : ''}</nav></main>${toc}</div>`;
   await mkdir(path.join(output, doc.path), { recursive: true });
